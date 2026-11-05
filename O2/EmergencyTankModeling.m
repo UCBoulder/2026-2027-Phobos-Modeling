@@ -21,7 +21,7 @@ close all;
 
 % {CYLINDER w/ TWO DOME CAPS (c1, first cylinder configuration)}
 % *REUSE* [Ideal Gas Law: PV=nRT]
-    P = 25855350; % [Pa] (aka 3750 psia)
+    P = 25855350; % [Pa] (aka 3750 psia) internal pressure
     n = (0.5523*1000)/(31.998); % grams of emergency O2 needed [g] / MW O2 [g/mol] = [mol]
     R = 8.3145; % [J/mol*K]
     T = 293.15; % [K]
@@ -120,9 +120,84 @@ close all;
     hold off;
 
 %% Emergency Tank Material & FOS Modeling
+% Configuration: Cylindrical Tank w/ Two Dome Caps
 % Need F.O.S = 2
-% FOS = 2;
-% Material: Carbon-Composite COPV, Metal-Lined
-% Declare pressure variables
+% Material: Carbon-Fiber COPV, Metal-Lined
+% Operating Pressure: 25855350 [Pa] / 3750 [psia]
+% Diameter (for ideal internal volume) = 11.69 cm; Height = 20 cm
+% Internal Volume = 0.0016 m^3
+
+% [Metal Liner Thickness]
+% Material Choice: Alumnimum 6061-T6 
+    % Reasoning: Common material, affordable, lightweight, good against corrosion 
+    % *Initial assumption that metal-liner carries entire 3750 psia load*
+
+% [FOS & Stress Equations for Metal Liner]
+% FOS = sigma_fail / sigma_allow
+
+FOS = 2;
+sigma_fail_m = (276 * 10^6); % [Pa] / for Aluminum 6061-T6
+sigma_allow_m = sigma_fail_m / FOS; 
+
+% sigma_hoop = (P_internal * r_ideal) / (t)
+r_ideal = 11.69/2; % [cm] / from ideal diameter of 11.69
+
+t_cylinder = (P * r_ideal) / (sigma_allow_m);
+t_dome = (P * r_ideal) / (2 * sigma_allow_m);
+uniform_t = max(t_cylinder, t_dome);
+
+% Check if thin-wall assumption is applicable
+thin_wall_ratio = uniform_t / r_ideal; % should be <= 0.1
+
+% thin wall ratio > 0.1 so use thick wall equations
+t_cylinder_thick = (r_ideal) .* (sqrt((sigma_allow_m + P) ./ (sigma_allow_m - P)) - 1);
+t_dome_thick = (r_ideal) .* (((2*sigma_allow_m + P) ./ (2*(sigma_allow_m - P))).^(1/3) - 1);
+uniform_t_thick = max(t_cylinder_thick, t_dome_thick);
+
+% External dimensions
+D_external = 11.69 + (2 .* uniform_t_thick);
+H_external = 20 + (2 .* uniform_t_thick);
+
+% [Carbon-Fiber Overwrap Thickness]
+% Material Choice: Torayca T800 Carbon-Fiber
+    % Reasoning: Widely used in aero. applications, high yield strength
+
+% [FOS & Stress Equations for Carbon Liner]
+sigma_fail_c = (5.5 * 10^9); % [Pa] / for Torayca T800
+sigma_allow_c = sigma_fail_c / FOS;
+
+% Burst pressure is double the internal pressure load
+P_burst = 2 * P;
+
+% sigma_hoop = (P_internal * r_ideal) / (t)
+r_carbon = D_external / 2;
+t_cylinder_c = (P_burst * r_carbon) / (sigma_allow_c);
+t_dome_c = (P_burst * r_carbon) / (2 * sigma_allow_c);
+uniform_t_c = max(t_cylinder_c, t_dome_c);
+
+% Check if thin-wall assumption is applicable
+thin_wall_ratio_c = uniform_t_c / r_carbon; % should be <= 0.1
+
+% Total thickness of metal + carbon liner
+t_total = uniform_t_thick + uniform_t_c;
+
+% Final dimension calculations for entire tank (external)
+D_final = 11.69 + (2 .* t_total);
+H_final = 20 + (2 .* t_total);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
