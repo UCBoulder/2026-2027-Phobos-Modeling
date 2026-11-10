@@ -1,0 +1,249 @@
+clc; clear; close all;
+figure('Units', 'normalized', 'Position', [0.05 0.1 0.9 0.8]);
+
+% Upper Bound EVA Metabolic Rates (8:30):
+% 1 hr nominal, 2 hr resistive, 1 hr nominal, 2 hr resistive, 30 min aerobic,
+% 30 min recovery, 1 hr nominal  (= 8 hr EVA)
+% + 30 min NOMINAL emergency (canister 2 reserve, matches component sizing)
+% MetMan Data (outputs in g/min)
+
+% nominal
+CO2_82_nom = 0.69;
+
+% aerobic
+CO2_82_aero = 5.22;
+
+% resistive
+CO2_82_resist = 1.89;
+
+% recovery
+CO2_82_recovery = 0.69;
+
+% Percentile Masses (kg)
+M_5th = 53.685;
+M_95th = 99.157;
+
+% CALCULATIONS
+% nominal
+CO2_5th_nom = (CO2_82_nom)*(M_5th/82);
+CO2_95th_nom = (CO2_82_nom)*(M_95th/82);      % = 0.8344 g/min, matches sizing file
+
+% aerobic
+CO2_5th_aero = (CO2_82_aero)*(M_5th/82);
+CO2_95th_aero = (CO2_82_aero)*(M_95th/82);
+
+% resistive
+CO2_5th_resist = (CO2_82_resist)*(M_5th/82);
+CO2_95th_resist = (CO2_82_resist)*(M_95th/82);
+
+% recovery
+CO2_5th_recovery = (CO2_82_recovery)*(M_5th/82);
+CO2_95th_recovery = (CO2_82_recovery)*(M_95th/82);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% PLOT
+hold on;
+
+% Time boundaries (one more entry than there are chunks)
+t = [0 1 3 4 6 6.5 7 8 8.5];
+n8 = 7;   % first 7 chunks = 8 hr EVA; chunk 8 = 30 min nominal emergency
+
+% Activity zone for each chunk (nom, aero, resist, or recovery)
+zones = {'nom', 'resist', 'nom', 'resist','aero', 'recovery', 'nom', 'nom'};
+
+% Zone colors: blue, red, yellow, green
+zone_names  = {'nom', 'aero', 'resist', 'recovery'};
+zone_colors = [0 0.45 0.9;    % nominal  - blue
+               0.85 0.1 0.1;  % aerobic  - red
+               1 0.85 0;      % resistive - yellow
+               0.1 0.7 0.2];  % recovery - green
+
+% Task name for each chunk
+tasks = {'Nominal', 'Resistive', 'Nominal', 'Resistive','Aerobic', 'Recovery', 'Nominal', sprintf('Emerg.\n(nom)')};
+
+% Creating the horizontal lines
+co2_5th  = [CO2_5th_nom  CO2_5th_resist  CO2_5th_nom  CO2_5th_resist  CO2_5th_aero  CO2_5th_recovery  CO2_5th_nom  CO2_5th_nom];
+co2_82   = [CO2_82_nom   CO2_82_resist   CO2_82_nom   CO2_82_resist   CO2_82_aero   CO2_82_recovery   CO2_82_nom   CO2_82_nom];
+co2_95th = [CO2_95th_nom CO2_95th_resist CO2_95th_nom CO2_95th_resist CO2_95th_aero CO2_95th_recovery CO2_95th_nom CO2_95th_nom];
+
+
+% Draw each chunk
+for k = 1:length(tasks)
+    x = [t(k) t(k+1)];
+
+    % shaded 5th-95th region
+    line_color = [1 0.5 0];
+    fill([x fliplr(x)], [co2_5th(k) co2_5th(k) co2_95th(k) co2_95th(k)], line_color, ...
+        'FaceAlpha', 0.15, 'EdgeColor', 'none', 'HandleVisibility', 'off')
+
+    % lines
+    plot(x, [co2_5th(k) co2_5th(k)], '--', 'Color', line_color)
+    plot(x, [co2_82(k) co2_82(k)], '-', 'Color', line_color)
+    plot(x, [co2_95th(k) co2_95th(k)], '--', 'Color', line_color)
+
+    % task label centered under the chunk
+    text(mean(x), -0.8, tasks{k}, 'HorizontalAlignment', 'center', 'FontSize', 8,'Clipping', 'off')
+
+    % colored zone bar along the bottom of the plot
+    c = zone_colors(strcmp(zone_names, zones{k}), :);
+    fill([x fliplr(x)], [0 0 0.4 0.4], c, 'EdgeColor', 'none', 'HandleVisibility', 'off')
+
+end
+
+% Vertical connectors between chunks
+for k = 1:length(tasks)-1
+    xb = t(k+1);   % boundary between chunk k and k+1
+    plot([xb xb], [co2_5th(k)  co2_5th(k+1)],  '-', 'Color', line_color, 'HandleVisibility', 'off')
+    plot([xb xb], [co2_95th(k) co2_95th(k+1)], '-', 'Color', line_color, 'HandleVisibility', 'off')
+    plot([xb xb], [co2_82(k) co2_82(k+1)], '-', 'Color', line_color, 'HandleVisibility', 'off')
+end
+
+% End caps (left edge of first chunk, right edge of last chunk)
+plot([t(1) t(1)],     [co2_5th(1)   co2_95th(1)],   '-', 'Color', line_color, 'HandleVisibility', 'off')
+plot([t(end) t(end)], [co2_5th(end) co2_95th(end)], '-', 'Color', line_color, 'HandleVisibility', 'off')
+
+% Mark end of the 8 hr EVA / start of emergency
+xline(t(n8+1), ':k', 'Emergency starts', 'LabelVerticalAlignment', 'middle', 'HandleVisibility', 'off')
+
+ylim([0 8])
+yticks(0:1:8)
+xlim([0 t(end)])
+xticks(0:0.5:t(end))
+grid on;
+
+% Max/min box (top left)
+max_val = max(co2_95th);   % highest 95th percentile rate
+min_val = min(co2_5th);    % lowest 5th percentile rate
+text(0.02, 0.97, sprintf('Max: %.2f g/min\nMin: %.2f g/min', max_val, min_val), ...
+    'Units', 'normalized', 'VerticalAlignment', 'top', 'FontSize', 9, ...
+    'BackgroundColor', 'w', 'EdgeColor', 'k', 'Margin', 5)
+
+% Totals (top right)
+% Duration of each chunk in minutes (since each activity lasts different amounts of time)
+dt = diff(t)*60;
+
+% Total CO2 (g -> kg), full 8:30
+tot_co2_5th  = sum(co2_5th .*dt)/1000;
+tot_co2_82   = sum(co2_82  .*dt)/1000;
+tot_co2_95th = sum(co2_95th.*dt)/1000;
+
+text(0.70, 0.97, sprintf('Total CO2 Produced (8:30)\n5th: %.2f kg\n82: %.2f kg\n95th: %.2f kg', tot_co2_5th, tot_co2_82, tot_co2_95th), ...
+    'Units', 'normalized', 'VerticalAlignment', 'top', 'FontSize', 9, ...
+    'BackgroundColor', 'w', 'EdgeColor', 'k', 'Margin', 5)
+
+legend("5th Percentile", "82 kg Reference", "95th Percentile")
+xlabel("EVA Duration (hours)", 'FontSize', 12, 'FontWeight', 'bold')
+ylabel("Metabolic Production Rates (g/min)")
+subtitle("Upper Bound EVA Metabolic Loads + 30 min Nominal Emergency")
+title("CO2 Production Rates with Changing Activity Zones")
+
+% main plot layout: [left bottom width height]
+ax = gca;
+ax.Position = [0.05 0.2 0.85 0.72];
+ax.XLabel.Position(2) = -1.5;
+
+% Zone key
+zone_labels = {'Nominal', 'Aerobic', 'Resistive', 'Recovery'};
+kax = axes('Position', [0.92 0.45 0.02 0.2]);
+hold(kax, 'on')
+for i = 1:4
+    fill(kax, [0 1 1 0], [4-i 4-i 5-i 5-i], zone_colors(i,:), 'EdgeColor', 'k')
+    text(kax, 1.3, 4.5-i, zone_labels{i}, 'FontSize', 8, 'VerticalAlignment', 'middle')
+end
+xlim(kax, [0 1])
+ylim(kax, [0 4])
+axis(kax, 'off')
+
+%% Check against component sizing (95th percentile)
+tot_co2_95th_8hr = sum(co2_95th(1:n8).*dt(1:n8))/1000;      % kg
+co2_sizing_8hr   = 0.91;                                     % kg, from sizing file
+co2_sizing_830   = co2_sizing_8hr + (CO2_95th_nom/1000)*30;  % kg
+
+fprintf('\n----- CO2 LOAD vs COMPONENT SIZING (95th percentile) -----\n');
+fprintf('8 hr EVA:    %.4f kg (sizing: %.4f kg)\n', tot_co2_95th_8hr, co2_sizing_8hr);
+fprintf('8:30 total:  %.4f kg (sizing: %.4f kg)\n', tot_co2_95th, co2_sizing_830);
+
+%% Heat Generation
+eff      = 0.85;        % LiOH canister efficiency (constant, matches eta0 in efficiency model)
+MW_CO2   = 44.01;       % g/mol
+MW_LiOH  = 23.95;       % g/mol (matches sizing file)
+MW_H2O   = 18.015;      % g/mol
+dH_molar = 94.5;        % kJ released per mol CO2 absorbed (2LiOH + CO2 -> Li2CO3 + H2O(g))
+q_per_g  = dH_molar / MW_CO2;   % kJ per g CO2 absorbed (~2.15)
+lioh_per_co2 = (2*MW_LiOH)/MW_CO2;
+
+% Heat generation rate [W] for each chunk
+%   g/min * kJ/g * 1000 J/kJ / 60 s/min = W
+P_5th  = eff * co2_5th  * q_per_g * 1000/60;
+P_82   = eff * co2_82   * q_per_g * 1000/60;
+P_95th = eff * co2_95th * q_per_g * 1000/60;
+
+% Total energy released over 8:30 [kJ]  (dt is in minutes)
+E_5th  = sum(eff * co2_5th  .* dt) * q_per_g;
+E_82   = sum(eff * co2_82   .* dt) * q_per_g;
+E_95th = sum(eff * co2_95th .* dt) * q_per_g;
+
+% Total CO2 absorbed and water produced [g] - 82 kg
+CO2_abs_82 = sum(eff * co2_82 .* dt);
+H2O_prod_82 = CO2_abs_82 * (MW_H2O / MW_CO2);   % 1 mol H2O per mol CO2
+
+% Total CO2 absorbed and water produced [g] - 95th percentile, 8:30
+CO2_abs_95 = sum(eff * co2_95th .* dt);
+H2O_prod_95 = CO2_abs_95 * (MW_H2O / MW_CO2);   % 1 mol H2O per mol CO2
+m_LiOH_reacted_95 = CO2_abs_95 * lioh_per_co2;  % g LiOH reacted
+
+% 95th percentile, 8 hr EVA only (before emergency)
+CO2_abs_95_8hr  = sum(eff * co2_95th(1:n8) .* dt(1:n8));
+H2O_prod_95_8hr = CO2_abs_95_8hr * (MW_H2O / MW_CO2);
+E_95th_8hr      = CO2_abs_95_8hr * q_per_g;
+
+fprintf('\n----- HEAT & WATER (eff = %.2f) -----\n', eff);
+fprintf('Total LiOH heat, 8:30 (kJ):  5th = %.0f | 82 kg = %.0f | 95th = %.0f\n', E_5th, E_82, E_95th);
+fprintf('Total LiOH heat, 95th, 8 hr only (kJ): %.0f\n', E_95th_8hr);
+fprintf('Peak heat rate (W):          5th = %.1f | 82 kg = %.1f | 95th = %.1f\n', max(P_5th), max(P_82), max(P_95th));
+fprintf('Water produced (95th, 8 hr):   %.1f g\n', H2O_prod_95_8hr);
+fprintf('Water produced (95th, 8:30):   %.1f g\n', H2O_prod_95);
+fprintf('Water produced (82 kg, 8:30):  %.1f g\n', H2O_prod_82);
+fprintf('LiOH reacted (95th, 8:30):     %.0f g\n', m_LiOH_reacted_95);
+
+%% PLOT
+
+tt = reshape([t(1:end-1); t(2:end)], 1, []);
+stairify = @(P) reshape([P; P], 1, []);
+
+figure('Units','normalized','Position',[0.05 0.1 0.9 0.8]);
+
+subplot(2,1,1); hold on; grid on;
+plot(tt, stairify(P_5th),  '--', 'Color', [1 0.5 0]);
+plot(tt, stairify(P_82),   '-',  'Color', [1 0.5 0]);
+plot(tt, stairify(P_95th), '--', 'Color', [1 0.5 0]);
+fill([tt fliplr(tt)], [stairify(P_5th) fliplr(stairify(P_95th))], [1 0.5 0], ...
+     'FaceAlpha', 0.15, 'EdgeColor', 'none', 'HandleVisibility', 'off');
+xline(t(n8+1), ':k', 'Emergency starts', 'HandleVisibility', 'off');
+xlim([0 t(end)]); xticks(0:0.5:t(end));
+xlabel('EVA Duration (hours)'); ylabel('LiOH Heat Generation (W)');
+title(sprintf('LiOH Heat Generation Rate (\\eta = %.2f), 8:30 EVA', eff));
+legend('5th Percentile','82 kg Reference','95th Percentile','Location','northwest');
+
+subplot(2,1,2); hold on; grid on;
+% Cumulative energy is linear within each section
+cumE = @(co2) [0 cumsum(eff * co2 .* dt * q_per_g)];   % kJ
+plot(t, cumE(co2_5th),  '--', 'Color', [1 0.5 0]);
+plot(t, cumE(co2_82),   '-',  'Color', [1 0.5 0]);
+plot(t, cumE(co2_95th), '--', 'Color', [1 0.5 0]);
+xline(t(n8+1), ':k', 'Emergency starts', 'HandleVisibility', 'off');
+xlim([0 t(end)]); xticks(0:0.5:t(end));
+xlabel('EVA Duration (hours)'); ylabel('Cumulative Heat (kJ)');
+title('Cumulative LiOH Heat Released');
+
+%% Cumulative water produced (95th percentile)
+figure('Units','normalized','Position',[0.1 0.15 0.7 0.6]); hold on; grid on;
+cumH2O = @(co2) [0 cumsum(eff * co2 .* dt)] * (MW_H2O/MW_CO2);   % g
+plot(t, cumH2O(co2_5th),  '--', 'Color', [0 0.45 0.9]);
+plot(t, cumH2O(co2_82),   '-',  'Color', [0 0.45 0.9]);
+plot(t, cumH2O(co2_95th), '--', 'Color', [0 0.45 0.9]);
+xline(t(n8+1), ':k', 'Emergency starts', 'HandleVisibility', 'off');
+xlim([0 t(end)]); xticks(0:0.5:t(end));
+xlabel('EVA Duration (hours)'); ylabel('Water Produced by LiOH (g)');
+title('Cumulative Water Produced by LiOH Reaction');
+legend('5th Percentile','82 kg Reference','95th Percentile','Location','northwest');
